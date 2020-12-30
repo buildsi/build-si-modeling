@@ -65,7 +65,7 @@
     * Consider behavior of DYLD_FALLBACK_LIBRARY_PATH
 
 ## Virtual dependencies
-* These are currently very nonspecific   it's possible these could be fungible with weird dependency types above: https://github.com/spack/spack/discussions/20256#discussioncomment-248934.
+* These are currently very nonspecific   it's possible these could be fungible with [weird dependency types above](https://github.com/spack/spack/discussions/20256#discussioncomment-248934).
   * These do not attempt to validate any properties about implementors.
 * Consider this from the context of:
   * Package declares virtual dep (in package.py)
