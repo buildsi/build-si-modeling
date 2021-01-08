@@ -1,8 +1,10 @@
 PANDOC=pandoc \
 			 --from markdown+autolink_bare_uris+simple_tables+table_captions \
-			 --lua-filter ./lua-filters/include-code-files/include-code-files.lua \
 			 --lua-filter ./lua-filters/include-files/include-files.lua \
+			 --lua-filter ./lua-filters/include-code-files/include-code-files.lua \
 			 --lua-filter ./lua-filters/minted/minted.lua \
+			 --citeproc \
+			 --bibliography=paper.bib \
 			 --template template.tex
 
 MD_FILES:=$(wildcard *.md)
