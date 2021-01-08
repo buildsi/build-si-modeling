@@ -18,51 +18,72 @@
 * Flags
 
 ## Dependencies (Edges)
-* Types of dependencies
-  * Build
-    * At build time:
-      * Must exist
-      * Add to PATH
-    * Dependencies of build deps don't need to be unified with other build deps of same parent (not true right now)
-    * Can be removed ater build completes (parent doesn't need it after build time)
-  * Link
-    * Currently models dynamic libs
-    * Dynamic library
-    * Must be in same process 
-    * Adds -L to compiler wrappers
-    * Adds -Wl,-rpath to compiler wrappers
-    * Adds transitive RPATHs if not specified otherwise
-    * Could pre-resolve to absolute DT_NEEDED path
-      * May conflict with dlopen
-    * May be subsumed by another library given compatible ABI
-    * Needs to stick around after build (can't be uninstalled w/o parent uninstalled)
-    * Decisions at link time affect how the spec can be executed at runtime.
-  * Run
-    * Program will call executables from this at runtime
-    * Usually by name (so relies on PATH, has to be unified)
-    * Needs to stick around after build (parent needs it)
-  * Test
-    * Needed at test time, probably need way more fleshing out
-    * Probably need test-build, test-run, test-link, test-include deps
-    * Maybe needs to be re-envisioned as a crosscut
-  * Deptypes we do not currently have
-    * Include? Header-only?
-      * Has to be unified so everyone gets same headers
-      * Doesn't need to be kept around for dependents after build time
-    * Interface?
-    * Static linking
+
+Current dependency types:
+
+| type  | availability                                       | components                           | propagates | 
+| ---   | ---                                                | ---                                  | ---        |
+| build | build time, not runtime                            | Unknown                              | no         |
+| link  | build time, also implies run and test time for now | Unknown, probably includes a library | yes        |
+| run   | all of build, link run and test                    | Unknown                              | yes        |
+| test  | test build and run time, maybe normal build        | Unknown                              | no         |
+
+### Things not accounted for:
+
+* PATHs required by a given phase
+* Components used, probably by phase:
+  * commands? might be covered by paths
+  * interface: headers/modules/definitions that are needed at build but not runtime
+  * libraries: possibly also static vs dynamic
+* propagation: in A->B->C does A depend on C in a given phase
+* Does it have ABI impact?
+
+
+### Types of dependencies
+* Build
+  * At build time:
+    * Must exist
+    * Add to PATH
+  * Dependencies of build deps don't need to be unified with other build deps of same parent (not true right now)
+  * Can be removed ater build completes (parent doesn't need it after build time)
+* Link
+  * Currently models dynamic libs
+  * Dynamic library
+  * Must be in same process 
+  * Adds -L to compiler wrappers
+  * Adds -Wl,-rpath to compiler wrappers
+  * Adds transitive RPATHs if not specified otherwise
+  * Could pre-resolve to absolute DT_NEEDED path
+    * May conflict with dlopen
+  * May be subsumed by another library given compatible ABI
+  * Needs to stick around after build (can't be uninstalled w/o parent uninstalled)
+  * Decisions at link time affect how the spec can be executed at runtime.
+* Run
+  * Program will call executables from this at runtime
+  * Usually by name (so relies on PATH, has to be unified)
+  * Needs to stick around after build (parent needs it)
+* Test
+  * Needed at test time, probably need way more fleshing out
+  * Probably need test-build, test-run, test-link, test-include deps
+  * Maybe needs to be re-envisioned as a crosscut
+* Deptypes we do not currently have
+  * Include? Header-only?
+    * Has to be unified so everyone gets same headers
+    * Doesn't need to be kept around for dependents after build time
+  * Interface?
+  * Static linking
 * Finer-grained types?
-  * Linking: static vs. dynamic?  Static pic?
-  * The above dependency types can be viewed as umbrellas of finer-grained types: https://github.com/spack/spack/discussions/20523.
+* Linking: static vs. dynamic?  Static pic?
+* The above dependency types can be viewed as umbrellas of finer-grained types: https://github.com/spack/spack/discussions/20523.
 * Weird dependency types that need to be in the taxonomy somewhere
-  * Libc (sets interpreter)
-  * Allocator (tcmalloc, supposed to be statically linked)
-  * LD_PRELOAD and other shims
-  * Load time issues related to libraries and subsuming APIs etc.
-    * Rust in jemalloc mixed with a libc application, have to link/preload jemalloc?
-    * Discuss windows loading model
-    * Language requirements of loaders
-    * Consider behavior of DYLD_FALLBACK_LIBRARY_PATH
+* Libc (sets interpreter)
+* Allocator (tcmalloc, supposed to be statically linked)
+* LD_PRELOAD and other shims
+* Load time issues related to libraries and subsuming APIs etc.
+  * Rust in jemalloc mixed with a libc application, have to link/preload jemalloc?
+  * Discuss windows loading model
+  * Language requirements of loaders
+  * Consider behavior of DYLD_FALLBACK_LIBRARY_PATH
 
 ## Virtual dependencies
 * These are currently very nonspecific   it's possible these could be fungible with [weird dependency types above](https://github.com/spack/spack/discussions/20256#discussioncomment-248934).
