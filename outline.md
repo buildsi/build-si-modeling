@@ -11,22 +11,22 @@
 
 The below example attempts to demonstrate how users, package developers, and maintainers interact in a **non-Spack context**:
 
-## Example: Pip Floating Constraints
+## Example: Floating Constraints
 [@vsoch](https://github.com/spack/build-si-modeling/issues/1#issuecomment-758894855):
 > This is a huge human element in this process that can lead to the solver failing (e.g., pip) when the constraints are too strict.
 
-Yes!!! I think this is a really crucial point.
+Yes!!! I think this is a really crucial point. I spent some time and effort trying to solve this exact issue at Twitter.
 
 Developers of large python libraries like tensorflow will leave some dependencies like Werkzeug with completely floating versions to avoid introducing transitive build failures, preferring to push the work onto dependees to find out the true value of that floating constraint (because tensorflow is *NOT* compatible with every single version of werkzeug). If you upload a new version of said constraint? Pip will then **immediately** start using that version, and your CI failures start depending upon the time of day, and a sad developer will spend several hours finding the right packages to delete each time.
 
-So in this case, we get it **totally backwards from the ideal case**, because it's very easy for python repo maintainers to upload new packages to test, but downstream users are having CI fail when that happens.
+So in this case, we get it **totally backwards from the ideal case**, because it's very easy for python repo maintainers to upload new packages to test, but downstream users are having CI fail when that happens. Notably, **this issue is not fixed with pip's new resolver**, and in general keeping in mind a specific feedback loop to optimize (say, tensorflow dependencies) may turn out to have outsize rewards for a particular application, leading to the dearth of a more general solution in the absence of altruistic motives.
 
 See this happen in the wild with Anaconda:
 https://stackoverflow.com/questions/48311645/installing-tensorflow-using-pip-within-anaconda-fails
 
 ### Example: Composing Environments for Polynomial Solves
 
-A solution Twitter once had was a partitioning-based constraint solver which kept track of all available versions of each target, using a union-find as well as locally merging constraint requirements. This is described because it introduces the concept of *merging* which is adapted here in [filesystem operations](#filesystem-operations). It was never used in production.
+A solution Twitter once attempted for this floating constraint problem was a partitioning-based constraint solver which kept track of all available versions of each target, using a union-find as well as locally merging constraint requirements. This is described because it introduces the concept of *merging* which is adapted here in [filesystem operations](#filesystem-operations). It was never used in production.
 
 [pants](https://github.com/pantsbuild/pants) lets you organize and publish your python code into multiple independent wheels published to PyPI. My technique created a pip lockfile for every root python project, then propagated matching requirement constraints back up to parent libraries, all the way up to the dependency roots. This amortized the cost of having to actually ping PyPI for new requirements to occur literally only when a single conflict was found. More importantly, this process separated for the first time the user and maintainer UX, where *users* have no responsibilities and don't wait very long, and *maintainers* are responsible for using *domain knowledge* to make a requirement update go as smoothly as possible (with as few one-off hacks as possible):
 - *user*: pulls master. makes changes to source code.
@@ -140,12 +140,15 @@ A spec may contain the following labeled values:
 *From [Environments](https://spack.readthedocs.io/en/latest/environments.html):*
 > An environment is used to group together a set of specs for the purpose of building, rebuilding and deploying in a coherent fashion.
 
-* A *spack environment*
+* A *spack environment* is currently used to compose [*build plans*](#build-plan) (not phases), re-concretizing whenever the environment is deployed.
 * What are they?
   * How/Can these be serialized?
   * How do these differ from (spack) modules?
-* Shell session?
-* Shared env vars with common parent process?
+  * How do these relate to spack stacks?
+    * I believe spack stacks, environments, modules, and `package.py` files can be considered instances of the same basic idea.
+* Shell session? Shared env vars with common parent process?
+  * Enabling env var inheritance is currently a spack command-line option, which does not affect the result of concretization.
+  * If this is necessary for some use case, it would be good to consider whether that use case can be converted into a [*build system*](#build-system). See [environment modifications](#environment-modifications).
 
 ## Package Developer Concepts
 
@@ -164,6 +167,8 @@ These are always specified in a [`package.py`](#package-py) file in some [repo](
 
 #### Environment Modifications
 * As per [unified environment](#unified-environment), the process environment can be treated as its own global *filesystem*.
+* When the environment needs to be inherited from a user's shell session (as discussed in [environments](#environments)), this can be made into a [build system](#build-system) to *avoid* an implicit dependency on the initial filesystem to successfully reproduce the environment.
+  * This may also be the case for when spack needs to be run within a specific directory on a host.
 
 ### Dependency Types
 
@@ -193,7 +198,7 @@ The known types of implicit requirements, sorted by the type of explicit depende
   * Dynamic library
   * Must be in same process
   * Adds -L to compiler wrappers
-  * Adds -Wl,-rpath to compiler wrappers
+  -Wl,-rpath to compiler wrappers
   * Adds transitive RPATHs if not specified otherwise
   * Could pre-resolve to absolute DT_NEEDED path
     * May conflict with dlopen
